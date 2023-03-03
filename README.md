@@ -40,7 +40,7 @@ docker-compose exec web python manage.py migrate
 docker-compose exec web python3 manage.py collectstatic --noinput 
 ```
 
-### После запуска проект будет доступен по адресу localhost[localhost], [swagger](localhost/api/swagger), [API](localhost/api/)
+### После запуска проект будет доступен по адресу [localhost](http://localhost), [swagger](http://localhost/api/swagger), [API](http://localhost/api/)
 
 ### Основные функции приложения:
 - Создание исполнителей:
