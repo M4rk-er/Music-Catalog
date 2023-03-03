@@ -15,7 +15,7 @@ git@github.com:M4rk-er/music_catalog_test_task.git
 ``` 
 cd music_service/infra 
 ```
-- Создайте файл ``` .env ```
+- Создайте файл ``` .env ``` с данными:
 
 ```
 DB_ENGINE=django.db.backends.postgresql
@@ -30,7 +30,7 @@ DB_PORT=5432
 docker-compose up -d --build 
 ```
 
-- Выполните миграции:
+- Выполните миграции в контейнере:
 ``` 
 docker-compose exec web python manage.py migrate 
 ```
@@ -40,7 +40,7 @@ docker-compose exec web python manage.py migrate
 docker-compose exec web python3 manage.py collectstatic --noinput 
 ```
 
-### После запуска проект будет доступен по адресу localhost, [Swagger](localhost/api/swagger), [api](localhost/api/)
+### После запуска проект будет доступен по адресу localhost[localhost], [swagger](localhost/api/swagger), [API](localhost/api/)
 
 ### Основные функции приложения:
 - Создание исполнителей:
