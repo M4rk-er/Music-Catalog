@@ -1,87 +1,29 @@
 from rest_framework import serializers
 
-from .models import Album, AlbumTrack, Performer, Track
+from music.models import Playlist, PlaylistTrack, Performer, Track
+from users.models import User
 
 
-class AlbumInSerializer(serializers.ModelSerializer):
-    """
-    Вложеный сериализатор для получение Album с полями id и name
-    в сериализаторе получения трека.
-    """
-    track_number = serializers.SerializerMethodField(method_name='get_track_number')
-    id = serializers.ReadOnlyField(source='id')
-
-    class Meta:
-        model = Album
-        fields = ('id', 'title', 'track_number',)
-
-    def get_track_number(self, album):
-        track = self.context.get('track')
-        album_track = AlbumTrack.objects.get(album=album, track=track)
-        return album_track.track_number
-
-
-class AlbumInSerialzer(serializers.ModelSerializer):
-    """
-    Сериализатор для получния Album с полями
-    id и title в сериализаторе создания трека.
-    """
-    id = serializers.PrimaryKeyRelatedField(queryset=Album.objects.all(),
+class PlaylistInSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(queryset=Playlist.objects.all(),
                                             required=True)
     title = serializers.ReadOnlyField()
+    track_number = serializers.SerializerMethodField(
+        method_name='get_track_number'
+    )
 
     class Meta:
-        model = Album
-        fields = ('id', 'title',)
+        model = Playlist
+        fields = ('id', 'title', 'track_number',)
+
+    def get_track_number(self, playlist):
+        track = self.context['track']
+        playlist_track = PlaylistTrack.objects.get(playlist=playlist,
+                                                   track=track)
+        return playlist_track.track_number
 
 
-class AlbumTrackListSerializer(serializers.ModelSerializer):
-    """
-    Сериализатор для добавления треков в альбом с полями
-    id, title, tracks.
-    """
-    id = serializers.ReadOnlyField(source='album.id')
-    title = serializers.ReadOnlyField(source='album.title')
-    tracks = serializers.PrimaryKeyRelatedField(queryset=Track.objects.all(),
-                                                many=True,
-                                                required=True)
-
-    class Meta:
-        model = Album
-        fields = ('id', 'title', 'tracks',)
-
-
-class CreateAlbumTrackSerializer(serializers.ModelSerializer):
-    """
-    Сериализатор для создания связи AlbumTrack
-    в сериализаторе для создания Альбома.
-    """
-    id = serializers.PrimaryKeyRelatedField(queryset=Track.objects.all(),
-                                            required=True,
-                                            source='track')
-    title = serializers.ReadOnlyField(source='track.title')
-
-    class Meta:
-        model = AlbumTrack
-        fields = ('id', 'title',)
-
-
-class PerformerForGetSerializer(serializers.ModelSerializer):
-    """
-    Вложенный сериализатор для получения Performer с полями
-    id и name в сериализаторе получения Трека.
-    """
-
-    class Meta:
-        model = Performer
-        fields = ('id', 'name',)
-
-
-class PerformerForCreateSerializer(serializers.ModelSerializer):
-    """
-    Вложенный сериализатор для получения Performer с полями
-    id и name в сериализаторе создания Трека.
-    """
+class PerformerInSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(queryset=Performer.objects.all(),
                                             required=True)
     name = serializers.ReadOnlyField()
@@ -91,121 +33,109 @@ class PerformerForCreateSerializer(serializers.ModelSerializer):
         fields = ('id', 'name',)
 
 
+class CreatePlaylistTrackSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(queryset=Track.objects.all(),
+                                            required=True,
+                                            source='track')
+    title = serializers.ReadOnlyField(source='track.title')
+    author = PerformerInSerializer(source='track.author', read_only=True)
+    track_number = serializers.ReadOnlyField()
+
+    class Meta:
+        model = PlaylistTrack
+        fields = ('id', 'title', 'author', 'track_number',)
+
+
 class TrackInSerializer(serializers.ModelSerializer):
-    """
-    Вложенный сериализатор для получения Track
-    с полями id, title, track_number
-    в сериализаторе получения альбома.
-    """
     track_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Track
         fields = ('id', 'title', 'track_number',)
 
-    def get_track_number(self, obj):
-        album = self.context.get('album')
-        album_track = AlbumTrack.objects.get(track=obj, album=album)
-        return album_track.track_number
+    def get_track_number(self, track):
+        playlist = self.context.get('playlist')
+        playlist_track = PlaylistTrack.objects.get(track=track,
+                                                   playlist=playlist)
+        return playlist_track.track_number
 
 
 class TracksListInSerializer(serializers.ModelSerializer):
-    """
-    Вложенный сериализатор для получения Track с полями id, title, albums
-    в сериализаторе получения исполнителя.
-    """
-    albums = serializers.SerializerMethodField(method_name='get_albums')
+    playlists = serializers.SerializerMethodField(method_name='get_playlists')
 
     class Meta:
         model = Track
-        fields = ('id', 'title', 'albums',)
+        fields = ('id', 'title', 'playlists',)
 
-    def get_albums(self, track):
-        return AlbumInSerializer(track.album.all(),
-                                 context={'track': track},
-                                 many=True).data
+    def get_playlists(self, track):
+        return PlaylistInSerializer(track.playlist.all(),
+                                    context={'track': track},
+                                    many=True).data
 
 
-class CreateAlbumSerializer(serializers.ModelSerializer):
-    """Создание Album."""
-    tracks = CreateAlbumTrackSerializer(many=True,
-                                        required=True,
-                                        source='albumtrack_set')
+class PlaylistSerializer(serializers.ModelSerializer):
+    tracks = CreatePlaylistTrackSerializer(many=True,
+                                           required=True,
+                                           source='playlisttrack_set')
 
     class Meta:
-        model = Album
-        fields = ('id', 'title', 'year_of_release', 'tracks',)
+        model = Playlist
+        fields = ('id', 'title', 'date_of_create', 'tracks',)
 
     def create(self, validated_data):
-        tracks_data = validated_data.pop('albumtrack_set')
-
-        album = Album.objects.create(**validated_data)
+        tracks_data = validated_data.pop('playlisttrack_set')
+        playlist = Playlist.objects.create(**validated_data)
 
         for track in tracks_data:
-            album_track = AlbumTrack(
-                album=album,
+            playlist_track = PlaylistTrack(
+                playlist=playlist,
                 track=track.get('track')
             )
-            album_track.save()
+            playlist_track.save()
 
-        return album
+        return playlist
 
-
-class GetAlbumSerializer(serializers.ModelSerializer):
-    """Получение Album."""
-    tracks = serializers.SerializerMethodField(method_name='get_tracks')
-
-    class Meta:
-        model = Album
-        fields = ('id', 'title',  'year_of_release', 'tracks',)
-
-    def get_tracks(self, album):
-        return TrackInSerializer(album.tracks.all(),
-                                 context={'album': album},
+    def get_tracks(self, playlist):
+        return TrackInSerializer(playlist.tracks.all(),
+                                 context={'playlist': playlist},
                                  many=True).data
 
 
-class CreatePerformerSerializer(serializers.ModelSerializer):
-    """Создание Track"""
-    class Meta:
-        model = Performer
-        fields = ('id', 'name',)
-
-
-class GetPerformerSerializer(serializers.ModelSerializer):
-    """Получение Performer."""
-    tracks = serializers.SerializerMethodField(method_name='get_tracks')
+class PerformerSerializer(serializers.ModelSerializer):
+    tracks = serializers.SerializerMethodField(method_name='get_tracks',
+                                               read_only=True,
+                                               required=False)
 
     class Meta:
         model = Performer
         fields = ('id', 'name', 'tracks',)
 
     def get_tracks(self, author):
-        return TracksListInSerializer(author.tracks.all(),
-                                      many=True).data
+        return TracksListInSerializer(author.tracks.all(), many=True).data
 
 
-class CreateTrackSerializer(serializers.ModelSerializer):
-    """Создание Track"""
-    author = PerformerForCreateSerializer(required=True)
-    album = AlbumInSerialzer(many=True, required=False)
+class TrackSerializer(serializers.ModelSerializer):
+    author = PerformerInSerializer(required=True)
+    playlists = serializers.SerializerMethodField(method_name='get_playlists',
+                                                  read_only=True)
 
     class Meta:
         model = Track
-        fields = ('id', 'title', 'author', 'album',)
+        fields = ('id', 'title', 'author', 'playlists')
+        extra_kwargs = {'title': {'required': True}}
 
     def create(self, validated_data):
-        is_album = validated_data.get('album')
-        album_data = validated_data.pop('album') if is_album else []
+        is_playlist = validated_data.get('playlists')
+        playlist_data = validated_data.pop('playlists') if is_playlist else []
         track = Track.objects.create(
             title=validated_data.get('title'),
             author=validated_data.get('author').get('id')
         )
-        if is_album:
-            for album in album_data:
-                album_obj = Album.objects.get(id=album['id'].id)
-                AlbumTrack.objects.create(
-                    album=album_obj,
+        if is_playlist:
+            for playlist in playlist_data:
+                playlist_obj = Playlist.objects.get(id=playlist['id'].id)
+                PlaylistTrack.objects.create(
+                    playlist=playlist_obj,
                     track=track
                 )
         return track
@@ -221,19 +151,49 @@ class CreateTrackSerializer(serializers.ModelSerializer):
             )
         return data
 
+    def get_playlists(self, obj):
+        playlists = Playlist.objects.filter(playlisttrack__track=obj)
+        serializer = PlaylistInSerializer(playlists,
+                                          context={'track': obj},
+                                          many=True)
+        return serializer.data
 
-class GetTrackSerializer(serializers.ModelSerializer):
-    """Получение Track."""
-    author = PerformerForGetSerializer(read_only=True)
-    albums = serializers.SerializerMethodField(method_name='get_albums')
+
+class PlaylistTrackListSerializer(serializers.ModelSerializer):
+    id = serializers.ReadOnlyField(source='playlist.id')
+    title = serializers.ReadOnlyField(source='playlist.title')
+    tracks = serializers.PrimaryKeyRelatedField(queryset=Track.objects.all(),
+                                                many=True,
+                                                required=True)
 
     class Meta:
-        model = Track
-        fields = ('id', 'title', 'author', 'albums',)
+        model = Playlist
+        fields = ('id', 'title', 'tracks',)
 
-    def get_albums(self, track):
-        albums = Album.objects.filter(albumtrack__track=track)
-        serializer = AlbumInSerializer(albums,
-                                       context={'track': track},
-                                       many=True)
-        return serializer.data
+
+class UserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = (
+            'id',
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'password',
+        )
+        extra_kwargs = {
+            'password': {'write_only': True},
+        }
+
+    def create(self, validated_data):
+        user = User(
+            email=validated_data['email'],
+            username=validated_data['username'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
