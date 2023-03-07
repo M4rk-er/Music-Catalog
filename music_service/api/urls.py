@@ -1,18 +1,18 @@
 from django.urls import include, path
 from rest_framework import routers, permissions
-from rest_framework.documentation import include_docs_urls
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-from .views import AlbumViewSet, PerformerViewSet, TrackViewSet
+from .views import PlaylistViewSet, PerformerViewSet, TrackViewSet, UserViewSet
 
 app_name = 'api'
 
 router = routers.DefaultRouter()
 
 router.register('performers', PerformerViewSet, basename='performers')
-router.register('albums', AlbumViewSet, basename='albums')
+router.register('playlists', PlaylistViewSet, basename='playlists')
 router.register('tracks', TrackViewSet, basename='tracks')
+router.register('users', UserViewSet, basename='users')
 
 
 schema_view = get_schema_view(
@@ -25,7 +25,6 @@ schema_view = get_schema_view(
     public=True,
     permission_classes=(permissions.AllowAny,),
 )
-
 
 
 urlpatterns = [

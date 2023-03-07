@@ -3,46 +3,39 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Album, AlbumTrack, Performer, Track
-from .serializers import (AlbumTrackListSerializer, CreateAlbumSerializer,
-                          CreatePerformerSerializer, CreateTrackSerializer,
-                          GetAlbumSerializer, GetPerformerSerializer,
-                          GetTrackSerializer)
+from users.models import User
+from music.models import Playlist, PlaylistTrack, Performer, Track
+from .serializers import (PlaylistTrackListSerializer, PerformerSerializer,
+                          PlaylistSerializer, TrackSerializer, UserSerializer)
 
 
 class PerformerViewSet(viewsets.ModelViewSet):
     queryset = Performer.objects.all()
     http_method_names = ['get', 'post']
+    serializer_class = PerformerSerializer
 
-    def get_serializer_class(self):
-        print(self.request.method)
-        if self.request.method in ['GET']:
-            return GetPerformerSerializer
-        return CreatePerformerSerializer
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
-class AlbumViewSet(viewsets.ModelViewSet):
-    queryset = Album.objects.all()
+class PlaylistViewSet(viewsets.ModelViewSet):
+    queryset = Playlist.objects.all()
+    serializer_class = PlaylistSerializer
     http_method_names = ['get', 'post', 'delete']
-
-    def get_serializer_class(self):
-        if self.request.method in ['GET']:
-            return GetAlbumSerializer
-        return CreateAlbumSerializer
 
     @action(
         detail=True, methods=['post', 'delete'],
-        serializer_class=AlbumTrackListSerializer,
+        serializer_class=PlaylistTrackListSerializer,
         url_name='add_tracks'
     )
     def add_tracks(self, request, pk=None):
-        album = get_object_or_404(Album, pk=pk)
+        playlist = get_object_or_404(Playlist, pk=pk)
         tracks_data = request.data.get('tracks', [])
-        serializer = AlbumTrackListSerializer(data=request.data)
+        serializer = PlaylistTrackListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         if request.method == 'POST':
-            existing_tracks = album.tracks.all().values_list('id', flat=True)
+            existing_tracks = playlist.tracks.all().values_list('id', flat=True)
             tracks_obj = []
 
             for track_id in tracks_data:
@@ -55,19 +48,22 @@ class AlbumViewSet(viewsets.ModelViewSet):
                 tracks_obj.append(track)
 
             for track in tracks_obj:
-                album_track = AlbumTrack(
-                    album=album,
+                playlist_track = PlaylistTrack(
+                    playlist=playlist,
                     track=track
                 )
-                album_track.save()
+                playlist_track.save()
 
-            serializer = GetAlbumSerializer(album)
+            serializer = PlaylistSerializer(playlist)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         if request.method == 'DELETE':
             for track in tracks_data:
-                if AlbumTrack.objects.filter(album=album, track=track).exists():
-                    AlbumTrack.objects.get(album=album, track=track).delete()
+                if PlaylistTrack.objects.filter(
+                    playlist=playlist, track=track
+                ).exists():
+                    PlaylistTrack.objects.get(playlist=playlist,
+                                              track=track).delete()
                     return Response(status=status.HTTP_204_NO_CONTENT)
                 return Response(
                     {'error': f'Трек {track} не добавлен в альбом'},
@@ -77,9 +73,11 @@ class AlbumViewSet(viewsets.ModelViewSet):
 
 class TrackViewSet(viewsets.ModelViewSet):
     queryset = Track.objects.all()
+    serializer_class = TrackSerializer
     http_method_names = ['get', 'post', 'delete']
 
-    def get_serializer_class(self):
-        if self.request.method in ['GET']:
-            return GetTrackSerializer
-        return CreateTrackSerializer
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    http_method_names = ['get', 'post', 'delete']
