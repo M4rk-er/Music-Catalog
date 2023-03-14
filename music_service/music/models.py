@@ -1,8 +1,14 @@
 from django.db import models
 
+from users.models import User
+
 
 class Performer(models.Model):
     name = models.CharField(max_length=128)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
 
     def __str__(self):
         return self.name
@@ -18,6 +24,10 @@ class Playlist(models.Model):
         blank=True,
         null=True,
     )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
 
     def __str__(self):
         return self.title
@@ -28,9 +38,13 @@ class Album(models.Model):
         max_length=128
     )
     release_date = models.DateField()
-    in_favorites = models.BooleanField(
-        default=False,
-        blank=True
+    author = models.ForeignKey(
+        Performer,
+        on_delete=models.CASCADE
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
     )
 
     def __str__(self):
@@ -107,3 +121,51 @@ class AlbumTrack(models.Model):
                 name='unique_album_title',
             ),
         ]
+
+
+class FavoriteTrack(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorite_tracks'
+    )
+    track = models.ForeignKey(
+        Track,
+        on_delete=models.CASCADE,
+        related_name='favorite_tracks'
+    )
+
+    def __str__(self):
+        return self.user
+
+
+class FavoriteAlbum(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorite_albums'
+    )
+    album = models.ForeignKey(
+        Album,
+        on_delete=models.CASCADE,
+        related_name='favorite_albums'
+    )
+
+    def __str__(self):
+        return self.user
+
+
+class FavoritePlaylist(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='favorite_playlists'
+    )
+    playlist = models.ForeignKey(
+        Playlist,
+        on_delete=models.CASCADE,
+        related_name='favorite_playlists'
+    )
+
+    def __str__(self):
+        return self.user
